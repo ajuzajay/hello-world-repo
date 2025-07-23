@@ -1,8 +1,32 @@
-name: Hello World
-on: push
+name: Remote Script Runner
+
+on:
+  workflow_dispatch:
+    inputs:
+      server_ip:
+        description: 'Target server IP'
+        required: true
+        type: string
+
 jobs:
-  hello-job:
+  deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Echo text
-        run: echo "Hello, world!"
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Set up SSH Key
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H ${{ inputs.server_ip }} >> ~/.ssh/known_hosts
+
+    - name: Copy Script to Server
+      run: |
+        scp deploy.sh ubuntu@${{ inputs.server_ip }}:/tmp/deploy.sh
+
+    - name: Run Script on Server
+      run: |
+        ssh ubuntu@${{ inputs.server_ip }} "chmod +x /tmp/deploy.sh && /tmp/deploy.sh"
